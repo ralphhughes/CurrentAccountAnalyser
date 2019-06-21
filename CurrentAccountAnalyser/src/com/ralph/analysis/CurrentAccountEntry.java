@@ -14,7 +14,7 @@ import org.jopendocument.dom.spreadsheet.Sheet;
  *
  * @author Ralph
  */
-public class AccountEntry {
+public class CurrentAccountEntry {
 
 
     // Define the current layout of the spreadsheet
@@ -38,8 +38,8 @@ public class AccountEntry {
             + "category text"
             + ");";
     
-    public static AccountEntry rowToAccountEntry(Sheet sheet, Integer rowNum) {
-        AccountEntry entry = new AccountEntry();
+    public static CurrentAccountEntry rowToAccountEntry(Sheet sheet, Integer rowNum) {
+        CurrentAccountEntry entry = new CurrentAccountEntry();
         
         entry.setRowNum(rowNum);
         

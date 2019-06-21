@@ -21,81 +21,31 @@ import org.jopendocument.dom.spreadsheet.SpreadSheet;
  *
  * @author Ralph
  */
-public class CurrentAccountAnalyser {
+public class JointAccountAnalyser {
     
     public static void main(String[] args) {
         System.out.println(new SimpleDateFormat("HH:mm:ss").format(new Date()) + "\tProgram started.");
-        final String sourceFilename = "C:\\users\\rhughes\\Google Drive\\Finance\\Current Accounts.ods";
-        final String SQLLiteFilename = "C:\\users\\rhughes\\Google Drive\\Finance\\Current Accounts.sqlite";
+        final String sourceFilename = "C:\\users\\rhughes\\Google Drive\\Finance\\Joint Account.ods";
+        final String SQLLiteFilename = "C:\\users\\rhughes\\Google Drive\\Finance\\Joint Account.sqlite";
         final String categoryRulesFilename = "C:\\users\\rhughes\\Google Drive\\Finance\\categoryRules.sql";
-        CurrentAccountAnalyser ca = new CurrentAccountAnalyser();
+        JointAccountAnalyser ca = new JointAccountAnalyser();
         
-        // Import any new rows in Current Accounts.ods into the SQLLite DB (wipe the DB first if last parameter is true)
-        // ca.importSpreadsheetToSql(sourceFilename, SQLLiteFilename, false);
+        // Import any new rows in Joint Account.ods into the SQLLite DB (wipe the DB first if last parameter is true)
+        ca.importSpreadsheetToSql(sourceFilename, SQLLiteFilename, false);
         
         
-        // ca.categoriseRecurringPayments(SQLLiteFilename, categoryRulesFilename);
+        ca.categoriseRecurringPayments(SQLLiteFilename, categoryRulesFilename);
         
-        ca.displayUnknownPayments(SQLLiteFilename);
+        //ca.displayUnknownPayments(SQLLiteFilename);
         
-        ca.displayCategoryStatistics(SQLLiteFilename);
+        //ca.displayCategoryStatistics(SQLLiteFilename);
         
         System.out.println(new SimpleDateFormat("HH:mm:ss").format(new Date()) + "\tProgram ended.");
     }
     
     public void displayCategoryStatistics(String SQLLiteDB) {
         ThinSQLLiteWrapper myDB = new ThinSQLLiteWrapper(SQLLiteDB);
-        int year = 2019;
-        int month = 5;
         
-        // SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM");
-        
-        System.out.println("\n-- Spending by category: " + year + "-" + String.format("%02d", month) + " --");
-        System.out.println("\tCategory\tMoneyOut\tMoneyIn");
-        
-        String spendingByCategory = "select \n" +
-            "    category, \n" +
-            "    round(sum(moneyOut),2) as TotalMoneyOut,\n" +
-            "    round(sum(moneyIn),2) as TotalMoneyIn\n" +
-            "from Santander\n" +
-            "where strftime('%Y-%m', date) = '" + year + "-" + String.format("%02d", month) + "'\n" +
-            "group by category";
-
-        ResultSet rs1 = myDB.executeQuery(spendingByCategory);
-        SQLUtils.printResultsFromQuery(rs1, false);
-        myDB.closeResultSet(rs1);
-
-        
-        System.out.println("\n-- Money in\\out by month, last 12 months --");
-        System.out.println("\tDate\tMoneyOut\tMoneyIn");
-        for (int monthNum = -12; monthNum < 0; monthNum++) {
-            String moneyInOutByMonth="select \n" +
-                "    strftime('%Y-%m', date) as YearMonth,\n" +
-                "    round(sum(moneyOut),2) as TotalMoneyOut,\n" +
-                "    round(sum(moneyIn),2) as TotalMoneyIn\n" +
-                "from Santander\n" +
-                "where strftime('%Y-%m', date) = strftime('%Y-%m', date('now','" + monthNum + " month'))";
-            ResultSet rs = myDB.executeQuery(moneyInOutByMonth);
-            SQLUtils.printResultsFromQuery(rs, false);
-            myDB.closeResultSet(rs);
-        }
-        
-        System.out.println("\n-- Bills by month --");
-        String billsMoneyByMonth="select \n" +
-            "    strftime('%Y-%m', date) as YearMonth,\n" +
-            "    round(sum(moneyOut),2) as TotalMoneyOut,\n" +
-            "    round(sum(moneyIn),2) as TotalMoneyIn\n" +
-            "from Santander\n" +
-            "where \n" +
-            "category in ('Bills-Council Tax','Bills-Gas, Electricity, Heating','Bills-council tax','Bills-Landline, Broadband','Bills-Water')\n" +
-            "and strftime('%Y-%m', date) = strftime('%Y-%m', date('now','-11 month'));";
-        ResultSet rs3 = myDB.executeQuery(billsMoneyByMonth);
-        SQLUtils.printResultsFromQuery(rs3, false);
-        myDB.closeResultSet(rs3);
-
-        String recentTransactions = "select * from Santander\n" +
-            "where date > date('now','-1 month');";
-
         myDB.closeConnection();
     }
     public void displayUnknownPayments(String SQLiteDB) {
@@ -133,22 +83,22 @@ public class CurrentAccountAnalyser {
         try {
             
             if (eraseDestinationTables) {
-                myDB.execute("DROP TABLE IF EXISTS Santander");
-                myDB.execute(CurrentAccountEntry.equivalentDDLSQL);
+                myDB.execute("DROP TABLE IF EXISTS Natwest");
+                myDB.execute(JointAccountEntry.equivalentDDLSQL);
                 System.out.println("Table dropped and empty table re-created.");
             }
             
             System.out.println(new SimpleDateFormat("HH:mm:ss").format(new Date()) + "\tOpening spreadsheet...");
-            Sheet sheet = SpreadSheet.createFromFile(new File(sourceFilename)).getSheet("Santander");
-            Integer firstRow = 2;
+            Sheet sheet = SpreadSheet.createFromFile(new File(sourceFilename)).getSheet("Downloaded Transactions");
+            Integer firstRow = 4;
             Integer lastRow = getLastPopulatedRow(sheet);
             
-            String insertSQL = "insert or ignore into Santander values (?, ?, ?, ?, ?, ?, ?, ?);";
+            String insertSQL = "insert or ignore into Natwest values (?, ?, ?, ?, ?, ?, ?);";
             PreparedStatement prepStmt = myDB.getConnection().prepareStatement(insertSQL);
                     
             int totalUpdated=0;
             for (Integer rowNum = firstRow; rowNum < lastRow; rowNum++) {
-                CurrentAccountEntry ae = CurrentAccountEntry.rowToAccountEntry(sheet, rowNum);
+                JointAccountEntry ae = JointAccountEntry.rowToAccountEntry(sheet, rowNum);
                 //System.out.println(ae);
                 
                 SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd");
@@ -159,7 +109,6 @@ public class CurrentAccountAnalyser {
                 prepStmt.setBigDecimal(5, ae.getMoneyOut());
                 prepStmt.setBigDecimal(6, ae.getBalance());
                 prepStmt.setString(7, ae.getMyDescription());
-                prepStmt.setString(8, ae.getMyCategory());
                 
                 prepStmt.addBatch();
               
